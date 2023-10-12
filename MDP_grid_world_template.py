@@ -22,44 +22,88 @@ def policyEvaluation(policy, reward, gamma, duration):
     # Initialize a new value function to store updated values
     newVal = np.zeros((rows, cols))
 
-    # Set expected rewards to terminal states
-    newVal[2][3] = 1
-    newVal[1][3] = -1
-
     # Perform policy evaluation for the specified number of iterations
-    for i in range(duration):
+    for _ in range(duration):
         # Iterate over all states in the grid world
-        for j in range(rows):
-            for k in range(cols):
+        for i in range(rows):
+            for j in range(cols):
                 # Skip non-accessible spot and terminal states
-                if (j, k) == (1, 1) or (j, k) == (2, 3) or (j, k) == (1, 3):
+                if (i, j) == (1, 1) or (i, j) == (2, 3) or (i, j) == (1, 3):
                     continue
 
                 # Get the action from the policy for the current state
-                action = policy[j][k]
+                action = policy[i][j]
+
+                # directions
+                upRow, upCol = (min((i + 1), rows - 1), j)
+                rightRow, rightCol = (i, min((j + 1), cols - 1))
+                leftRow, leftCol = (i, max(0, (j - 1)))
+                downRow, downCol = (max(0, (i - 1)), j)
+
+                # checks if any accesses inacessible state and bounces back if so
+                if (upRow, upCol) == (1, 1):
+                    (upRow, upCol) = (i, j)
+                elif (rightRow, rightCol) == (1, 1):
+                    (rightRow, rightCol) = (i, j)
+                elif (leftRow, leftCol) == (1, 1):
+                    (leftRow, leftCol) = (i, j)
+                elif (downRow, downCol) == (1, 1):
+                    (downRow, downCol) = (i, j)
+                
+                # sets different reward if terminal state
+                upReward = rightReward = downReward = leftReward = reward
+
+                if (upRow, upCol) == (2, 3):
+                    upReward = 1
+                elif (upRow, upCol) == (1, 3):
+                    upReward = -1
+
+                if (rightRow, rightCol) == (2, 3):
+                    rightReward = 1
+                elif (rightRow, rightCol) == (1, 3):
+                    rightReward = -1
+                
+                if (downRow, downCol) == (2, 3):
+                    downReward = 1
+                elif (downRow, downCol) == (1, 3):
+                    downReward = -1
+
+                if (leftRow, leftCol) == (2, 3):
+                    leftReward = 1
+                elif (leftRow, leftCol) == (1, 3):
+                    leftReward = -1
 
                 # Calculate the row and column indices of the next state based on the action
                 if action == 1:  # Up
-                    nextState = (max(j - 1, 0), k)
-                elif action == -1:  # Down
-                    nextState = (min(j + 1, rows - 1), k)
-                elif action == 2:  # Right
-                    nextState = (j, min(k + 1, cols - 1))
+                    expectedValue = (
+                        transitionProb * (upReward + gamma * val[upRow][upCol]) +
+                        leftProb * (leftReward + gamma * val[leftRow][leftCol]) +
+                        rightProb * (rightReward + gamma * val[rightRow][rightCol])
+                    )
+                elif action == -1:  # Down   
+                    expectedValue = (
+                        transitionProb * (downReward + gamma * val[downRow][downCol]) +
+                        leftProb * (leftReward + gamma * val[leftRow][leftCol]) +
+                        rightProb * (rightReward + gamma * val[rightRow][rightCol])
+                    )                   
+                elif action == 2:  # Right  
+                    expectedValue = (
+                        transitionProb * (rightReward + gamma * val[rightRow][rightCol]) +
+                        leftProb * (upReward + gamma * val[upRow][upCol]) +
+                        rightProb * (downReward + gamma * val[downRow][downCol])
+                    )          
                 elif action == -2:  # Left
-                    nextState = (j, max(k - 1, 0))
-
-                # Calculate the expected value for the current state
-                expectedValue = (
-                    transitionProb * (reward + gamma * val[nextState[0]][nextState[1]]) +
-                    leftProb * (reward + gamma * val[j][max(k - 1, 0)]) +
-                    rightProb * (reward + gamma * val[j][min(k + 1, cols - 1)])
-                )
+                    expectedValue = (
+                        transitionProb * (leftReward + gamma * val[leftRow][leftCol]) +
+                        leftProb * (downReward + gamma * val[downRow][downCol]) +
+                        rightProb * (upReward + gamma * val[upRow][upCol])
+                    )
 
                 # Update the new value function with the expected value
-                newVal[j][k] = expectedValue
+                newVal[i][j] = expectedValue
 
         # Update the value function with the new values for the next iteration
-        val = newVal
+        val = np.copy(newVal)
 
     return val
 
@@ -75,57 +119,86 @@ def valueIteration(reward, gamma, prob, duration):
     cols = 4
 
     # probabilities of not going intended direction (2 directions moving right angles from intended)
-    leftProb = (1 - prob) / 2
-    rightProb = leftProb
+    leftProb = rightProb = (1 - prob) / 2
 
     # vOpt array
-    v = np.zeros([3, 4], dtype=float)
-
-    # rewards array to calculate reward based on action
-    rewards = np.full((3, 4), reward)
-
-    # these terminal states are the only ones without the same value
-    rewards[2][3] = 1
-    rewards[1][3] = -1
-
-    # make blocked off square really low so that it never recommends it
-    rewards[1][1] = -1000
+    val = np.zeros([3, 4], dtype=float)
 
     # working value array
-    newV = np.copy(v)
+    newVal = np.copy(val)
 
     for _ in range(duration):
         for i in range(rows):
             for j in range(cols):
+                if (i, j) == (1, 1) or (i, j) == (2, 3) or (i, j) == (1, 3):
+                    continue
+
+                # directions
+                upRow, upCol = (min((i + 1), rows - 1), j)
+                rightRow, rightCol = (i, min((j + 1), cols - 1))
+                leftRow, leftCol = (i, max(0, (j - 1)))
+                downRow, downCol = (max(0, (i - 1)), j)
+
+                # checks if any accesses inacessible state and bounces back if so
+                if (upRow, upCol) == (1, 1):
+                    (upRow, upCol) = (i, j)
+                elif (rightRow, rightCol) == (1, 1):
+                    (rightRow, rightCol) = (i, j)
+                elif (leftRow, leftCol) == (1, 1):
+                    (leftRow, leftCol) = (i, j)
+                elif (downRow, downCol) == (1, 1):
+                    (downRow, downCol) = (i, j)
+
+                # sets different reward if terminal state
+                upReward = rightReward = downReward = leftReward = reward
+
+                if (upRow, upCol) == (2, 3):
+                    upReward = 1
+                elif (upRow, upCol) == (1, 3):
+                    upReward = -1
+
+                if (rightRow, rightCol) == (2, 3):
+                    rightReward = 1
+                elif (rightRow, rightCol) == (1, 3):
+                    rightReward = -1
+                
+                if (downRow, downCol) == (2, 3):
+                    downReward = 1
+                elif (downRow, downCol) == (1, 3):
+                    downReward = -1
+
+                if (leftRow, leftCol) == (2, 3):
+                    leftReward = 1
+                elif (leftRow, leftCol) == (1, 3):
+                    leftReward = -1
+
                 # find expected values of every action  
                 upVal = (
-                    prob * (rewards[min(rows - 1, i + 1)][j] + gamma * v[i][j]) +
-                    leftProb * (rewards[i][max(j - 1, 0)] + gamma * v[i][j]) +
-                    rightProb * (rewards[i][min(cols - 1, j + 1)] + gamma * v[i][j])
+                    prob * (upReward + gamma * val[upRow][upCol]) +
+                    leftProb * (leftReward + gamma * val[leftRow][leftCol]) +
+                    rightProb * (rightReward + gamma * val[rightRow][rightCol])
                 )
         
                 rightVal = (
-                    prob * (rewards[i][min(cols - 1, j + 1)] + gamma * v[i][j]) +
-                    leftProb * (rewards[min(rows - 1, i + 1)][j] + gamma * v[i][j]) +
-                    rightProb * (rewards[max(0, i - 1)][j] + gamma * v[i][j])
+                    prob * (rightReward + gamma * val[rightRow][rightCol]) +
+                    leftProb * (upReward + gamma * val[upRow][upCol]) +
+                    rightProb * (downReward + gamma * val[downRow][downCol])
                 )
         
                 downVal = (
-                    prob * (rewards[max(0, i - 1)][j] + gamma * v[i][j]) +
-                    leftProb * (rewards[i][min(cols - 1, j + 1)] + gamma * v[i][j]) +
-                    rightProb * (rewards[i][max(j - 1, 0)] + gamma * v[i][j])
+                    prob * (downReward + gamma * val[downRow][downCol]) +
+                    leftProb * (leftReward + gamma * val[leftRow][leftCol]) +
+                    rightProb * (rightReward + gamma * val[rightRow][rightCol])
                 )
         
                 leftVal = (
-                    prob * (rewards[i][max(j - 1, 0)] + gamma * v[i][j]) +
-                    leftProb * (rewards[max(0, i - 1)][j] + gamma * v[i][j]) +
-                    rightProb * (rewards[min(rows - 1, i + 1)][j] + gamma * v[i][j])
+                    prob * (leftReward + gamma * val[leftRow][leftCol]) +
+                    leftProb * (downReward + gamma * val[downRow][downCol]) +
+                    rightProb * (upReward + gamma * val[upRow][upCol])
                 )
-
-                print(f"At {i},{j}, up:{upVal}, right:{rightVal}, down:{downVal}, left:{leftVal}")
                 
                 maxVal = max(upVal, rightVal, downVal, leftVal)
-                newV[i][j] = maxVal
+                newVal[i][j] = maxVal
 
                 # ordered this way so that up > right > down > left
                 if upVal == maxVal:
@@ -137,7 +210,7 @@ def valueIteration(reward, gamma, prob, duration):
                 elif leftVal == maxVal:
                     policy[i][j] = -2
 
-        v = newV
+        val = np.copy(newVal)
 
     return policy
 
