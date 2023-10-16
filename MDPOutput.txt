@@ -1,0 +1,22 @@
+1.
+
+policy:
+ [[ 1 -2  1 -2]
+ [ 1 -1  1  1]
+ [ 1  2  2  2]] 
+reward, gamma, duration:
+ -0.05 0.95 50
+The expected utility of policy given in case1.csv after 50 iterations :
+[[ 0.19169536  0.81919095  0.93887457  0.        ]
+ [ 0.11809538  0.          0.62822616  0.        ]
+ [ 0.04148606 -0.02285459  0.44560378  0.21398195]]
+
+2.
+
+Optimal policy after 50 iterations :
+
+reward, gamma, prob, duration:
+ -0.05 0.95 0.7 50
+[[ 2  2  2  1]
+ [ 1  1  1  1]
+ [ 1 -2  1 -2]]
