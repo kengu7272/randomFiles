@@ -24,7 +24,6 @@ import math
 
 def getBeliefwMovingObj(N, observation, transitionP, carLength=1):
     std = carLength * 1./3
-    # print(N, observation, transitionP, carLength)
 
     # period of observation time
     timeSteps = observation.shape[0]
@@ -35,22 +34,20 @@ def getBeliefwMovingObj(N, observation, transitionP, carLength=1):
     # initial position: every spot has the same probability
     carTrackingFrames[0] = 1./(N*N)
 
-    # your code
-
     # Convert transition probabilities into a dictionary for easy access
     transitionProbDict = {(row['X'], row['Y']): {'N': row['N'], 'E': row['E'], 'S': row['S'], 'W': row['W']}
                           for _, row in transitionP.iterrows()}
 
     for index, row in observation.iterrows():
-        t = index + 1  # Adjust index to start from 1 for the time steps
+        t = index + 1
         agentX, agentY, eDist = row['agentX'], row['agentY'], row['eDist']
 
-        for x in range(N):
-            for y in range(N):
+        for y in range(N):  # Columns
+            for x in range(N):  # Rows
                 prob_sum = 0
                 for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:  # N, E, S, W
-                    prev_x, prev_y = (x + dx) % N, (y + dy) % N
-                    direction = {(0, 1): 'S', (1, 0): 'W', (0, -1): 'N', (-1, 0): 'E'}[(dx, dy)]
+                    prev_x, prev_y = (x - dx) % N, (y + dy) % N  # Adjust for row-column interpretation
+                    direction = {(0, 1): 'E', (1, 0): 'N', (0, -1): 'W', (-1, 0): 'S'}[(dx, dy)]
                     transition_prob = transitionProbDict.get((prev_x, prev_y)).get(direction)
                     prob_sum += carTrackingFrames[t-1, prev_x, prev_y] * transition_prob
 
@@ -59,12 +56,13 @@ def getBeliefwMovingObj(N, observation, transitionP, carLength=1):
                 true_dist = math.sqrt(dx**2 + dy**2)
                 emission_prob = norm.pdf(eDist, true_dist, std)
 
-                carTrackingFrames[t, x, y] = prob_sum * emission_prob
+                carTrackingFrames[t, y, x] = prob_sum * emission_prob  # Swap x and y
 
         # Normalize the probabilities for time step t
         carTrackingFrames[t] /= np.sum(carTrackingFrames[t])
 
     return carTrackingFrames[1:]  # Exclude the initial belief state
+
 
 # No need to change the main function.
 def main():
