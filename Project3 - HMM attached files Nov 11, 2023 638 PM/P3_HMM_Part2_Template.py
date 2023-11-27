@@ -48,10 +48,10 @@ def getBeliefwMovingObj(N, observation, transitionP, carLength=1):
         for x in range(N):
             for y in range(N):
                 prob_sum = 0
-                for dx, dy in [(-1, 0), (0, -1), (1, 0), (0, 1)]:  # N, W, S, E
-                    prev_x, prev_y = (x - dx) % N, (y - dy) % N
-                    direction = {(-1, 0): 'N', (0, -1): 'W', (1, 0): 'S', (0, 1): 'E'}[(dx, dy)]
-                    transition_prob = transitionProbDict.get((prev_x, prev_y), {}).get(direction, 0)
+                for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:  # N, E, S, W
+                    prev_x, prev_y = (x + dx) % N, (y + dy) % N
+                    direction = {(0, 1): 'S', (1, 0): 'W', (0, -1): 'N', (-1, 0): 'E'}[(dx, dy)]
+                    transition_prob = transitionProbDict.get((prev_x, prev_y)).get(direction)
                     prob_sum += carTrackingFrames[t-1, prev_x, prev_y] * transition_prob
 
                 dx = min(abs(agentX - x), N - abs(agentX - x))
